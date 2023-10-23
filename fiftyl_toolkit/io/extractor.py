@@ -19,13 +19,31 @@ class Data:
         self._records = self._h5_file.get_all_record_ids()
         self._last_extracted_record = None
 
-        self.run_time = datetime.strptime(self._filename.split("_")[-1].split(".")[0], self._dt_format)
+        self._datetime = datetime.strptime(self._filename.split("_")[-1].split(".")[0], self._dt_format)
         self.run_id = int(self._filename.split('/')[-1].split('_')[1][3:])
 
     def get_run_id(self) -> int:
+        """
+        Return the run ID integer.
+        """
         return self.run_id
 
+    def get_runtime(self) -> str:
+        """
+        Return a string of the HDF5 run time formatted as YYmmddTHHMMSS.
+        """
+        return self._datetime.strftime(self._dt_format)
+
+    def get_datetime(self) -> datetime:
+        """
+        Return the datetime object of the HDF5 run time.
+        """
+        return self._datetime
+
     def get_records(self) -> list:
+        """
+        Return the list of records contained in this file.
+        """
         return self._records
 
     def extract(self, record, *args) -> np.ndarray:
