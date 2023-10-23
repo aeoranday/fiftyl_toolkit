@@ -1,0 +1,31 @@
+[build-system]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "fiftyl_toolkit"
+version = "0.1"
+authors = [
+	{ name = "Alejandro Oranday", email = "alejandro@oran.day" }
+]
+description = "50L data toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: MIT License",
+	"Intended Audience :: Science/Research"
+]
+dependencies = [
+	"numpy"
+]
+
+[project.urls]
+Home = "https://github.com/aeoranday/fiftyl_toolkit"
+
+[external]
+dependencies = [
+	"pkg:github/DUNE-DAQ/hdf5libs",
+	"pkg:github/DUNE-DAQ/rawdatautils",
+	"pkg:github/DUNE-DAQ/daqdataformats"
+]
