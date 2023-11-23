@@ -21,12 +21,19 @@ class Data:
 
         self._datetime = datetime.strptime(self._filename.split("_")[-1].split(".")[0], self._dt_format)
         self.run_id = int(self._filename.split('/')[-1].split('_')[1][3:])
+        self.sub_run_id = int(self._filename.split('/')[-1].split('_')[2])
 
     def get_run_id(self) -> int:
         """
         Return the run ID integer.
         """
         return self.run_id
+
+    def get_sub_run_id(self) -> int:
+        """
+        Return the sub-run ID integer.
+        """
+        return self.sub_run_id
 
     def get_runtime(self) -> str:
         """
