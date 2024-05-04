@@ -1,3 +1,5 @@
+from ..ChannelMaps import CHANNEL_MAPS
+
 from datetime import datetime
 from functools import singledispatchmethod
 import os
@@ -11,9 +13,8 @@ from rawdatautils.unpack.wibeth import np_array_adc
 class Data:
     _dt_format = "%Y%m%dT%H%M%S" # datetime format from hdf5 files.
     _channels_per_link = 64
-    _channel_map = np.array([112, 113, 115, 116, 118, 119, 120, 121, 123, 124, 126, 127, 64, 65, 67, 68, 70, 71, 72, 73, 75, 76, 78, 79, 48, 49, 51, 52, 54, 55, 56, 57, 59, 60, 62, 63, 0, 1, 3, 4, 6, 7, 8, 9, 11, 12, 14, 15, 50, 53, 58, 61, 2, 5, 10, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 114, 117, 122, 125, 66, 69, 74, 77])
 
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, map_version: int=0):
         self._filename = os.path.expanduser(filename)
         self._h5_file = HDF5RawDataFile(self._filename)
         self._records = self._h5_file.get_all_record_ids()
@@ -22,6 +23,14 @@ class Data:
         self._datetime = datetime.strptime(self._filename.split("_")[-1].split(".")[0], self._dt_format)
         self.run_id = int(self._filename.split('/')[-1].split('_')[1][3:])
         self.sub_run_id = int(self._filename.split('/')[-1].split('_')[2])
+        self.set_channel_map(map_version)
+
+    def set_channel_map(self, map_version: int=0) -> None:
+        """
+        Set the channel map version.
+        """
+        self._channel_map = CHANNEL_MAPS[map_version]
+        return
 
     def get_run_id(self) -> int:
         """
