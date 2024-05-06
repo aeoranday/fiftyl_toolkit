@@ -29,7 +29,7 @@ class Data:
         """
         Set the channel map version.
         """
-        self._channel_map = CHANNEL_MAPS[map_version]
+        self._channel_map = np.array(CHANNEL_MAPS[map_version])
         return
 
     def get_run_id(self) -> int:
