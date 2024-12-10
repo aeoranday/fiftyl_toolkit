@@ -71,6 +71,14 @@ class Data:
         return self._file_index
 
     @property
+    def creation_timestamp(self):
+        return self._creation_timestamp
+
+    @creation_timestamp.getter
+    def creation_timestamp(self):
+        return self._creation_timestamp
+
+    @property
     def records(self):
         return self._records
 
