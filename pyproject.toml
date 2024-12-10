@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "fiftyl_toolkit"
-version = "0.1.4"
+version = "0.2.0"
 authors = [
 	{ name = "Alejandro Oranday", email = "alejandro@oran.day" }
 ]
