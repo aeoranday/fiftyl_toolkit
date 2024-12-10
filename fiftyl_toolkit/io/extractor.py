@@ -1,20 +1,20 @@
 from ..ChannelMaps import CHANNEL_MAPS, PLANE_MAPS
 
-from datetime import datetime
 from functools import singledispatchmethod
 import os
 
 import numpy as np
 from numpy.typing import NDArray
 
-import daqdataformats
+from daqdataformats import Fragment
 from hdf5libs import HDF5RawDataFile
 from rawdatautils.unpack.wibeth import np_array_adc
+
 
 class Data:
     _channels_per_link = 64
 
-    def __init__(self, filename: str, map_name: str="2T-UX"):
+    def __init__(self, filename: str, map_name: str = "2T-UX"):
         self._filename = os.path.expanduser(filename)
         self._h5_file = HDF5RawDataFile(self._filename)
         self._records = self._h5_file.get_all_record_ids()
@@ -30,7 +30,7 @@ class Data:
     def get_channel_map(self) -> list[int]:
         return self._channel_map
 
-    def set_channel_map(self, map_name: str="2T-UX") -> None:
+    def set_channel_map(self, map_name: str = "2T-UX") -> None:
         try:
             self._channel_map = np.array(CHANNEL_MAPS[map_name])
             self._inverse_map = np.argsort(self._channel_map)
@@ -41,7 +41,7 @@ class Data:
     def get_plane_map(self) -> NDArray:
         return self._plane_map
 
-    def set_plane_map(self, map_name: str="2T-UX") -> None:
+    def set_plane_map(self, map_name: str = "2T-UX") -> None:
         try:
             self._plane_map = PLANE_MAPS[map_name]
         except KeyError:
@@ -114,16 +114,16 @@ class Data:
         Performs the extraction after all the preprocessing.
         """
         geo_ids = self._h5_file.get_geo_ids(record)
-        adcs = None # Don't know the shape of the upcoming fragment, so prepare later
+        adcs = None  # Don't know the shape of the upcoming fragment, so prepare later
 
         for gid in geo_ids:
-            frag = self._h5_file.get_frag(record, gid)
+            frag: Fragment = self._h5_file.get_frag(record, gid)
 
             link = (0xffff & (gid >> 48)) % 2
             map_bounds = (link * 64, (link+1) * 64)
             tmp_adc = np_array_adc(frag)
 
-            if adcs is None: # Now we can get the shape to initialize
+            if adcs is None:  # Now we can get the shape to initialize
                 adcs = np.zeros((tmp_adc.shape[0], 128))
             elif tmp_adc.shape[0] < adcs.shape[0]:  # New fragment is smaller than the old. Make old smaller.
                 adcs = adcs[:tmp_adc.shape[0], :]
@@ -174,19 +174,19 @@ class Data:
         """
         Get by valid array-like object.
         """
-        ## Multiple planes by name case
-        if len(arg) <= 3: # Check if strings were given, such as ('collection', 'i2')
-            strings = [type(s) == str for s in arg]
+        # Multiple planes by name case
+        if len(arg) <= 3:  # Check if strings were given, such as ('collection', 'i2')
+            strings = [isinstance(s, str) for s in arg]
             if np.all(strings):
                 adcs = None
                 for plane in arg:
-                    if type(adcs) == type(None):
+                    if adcs is None:
                         adcs = self._extract_helper(plane)
                     else:
                         adcs = np.hstack((adcs, self._extract_helper(plane)))
                 return adcs
 
-        ## Integer array-like masking
+        # Integer array-like masking
         try:
             mask = np.array(arg, dtype=int)
         except (TypeError, ValueError):
