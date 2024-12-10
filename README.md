@@ -5,7 +5,7 @@ This package contains a useful data extraction class for use in 50L analysis. Us
 ```
 import fiftyl_toolkit
 data = fiftyl_toolkit.Data(path_to_data_file)
-record = data.get_records()[0]
+record = data.records[0]
 
 adcs = data.extract(record)
 limited_adcs = data.extract(record, range(10))
