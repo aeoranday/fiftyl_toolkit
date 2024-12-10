@@ -115,8 +115,12 @@ class Data:
             map_bounds = (link * 64, (link+1) * 64)
             tmp_adc = np_array_adc(frag)
 
-            if type(adcs) == type(None): # Now we can get the shape to initialize
+            if adcs is None: # Now we can get the shape to initialize
                 adcs = np.zeros((tmp_adc.shape[0], 128))
+            elif tmp_adc.shape[0] < adcs.shape[0]:  # New fragment is smaller than the old. Make old smaller.
+                adcs = adcs[:tmp_adc.shape[0], :]
+            elif tmp_adc.shape[0] > adcs.shape[0]:  # New fragment is larger than the old. Make new smaller.
+                tmp_adc = tmp_adc[:adcs.shape[0], :]
 
             adcs[:, self._inverse_map[map_bounds[0]:map_bounds[1]]] = tmp_adc
 
