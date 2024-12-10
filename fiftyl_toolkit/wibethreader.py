@@ -1,4 +1,4 @@
-from ..ChannelMaps import CHANNEL_MAPS, PLANE_MAPS
+from .channelmaps import CHANNEL_MAPS, PLANE_MAPS
 
 from functools import singledispatchmethod
 import os
@@ -12,7 +12,7 @@ from hdf5libs import HDF5RawDataFile
 from rawdatautils.unpack.wibeth import np_array_adc
 
 
-class Data:
+class WIBEthReader:
     """
     Data reader for experiments that have happened at CERN B182 2-003.
 
@@ -27,12 +27,12 @@ class Data:
 
         Parameters:
             filename (str) : Path of data file to process.
-            map_name (str) : Channel map to use when extracting. Defaults to latest map available.
+            map_name (str) : Channel map to use when reading. Defaults to latest map available.
         """
         self._filename: str = os.path.expanduser(filename)
         self._h5_file: HDF5RawDataFile = HDF5RawDataFile(self._filename)
         self._records: list[tuple[int, int]] = self._h5_file.get_all_record_ids()
-        self._last_extracted_record: tuple[int, int] | None = None
+        self._last_read_record: tuple[int, int] | None = None
 
         self._creation_timestamp: int = int(self._h5_file.get_attribute("creation_timestamp"))
         self._run_id: int = self._h5_file.get_int_attribute("run_number")
@@ -51,7 +51,7 @@ class Data:
 
     def set_channel_map(self, map_name: str = "2T-UX") -> None:
         """
-        Set the channel map to use when extracting data.
+        Set the channel map to use when reading data.
 
         Parameters:
             map_name (str) : Name of the map to use. fiftyl_toolkit.ChannelMaps has the available maps.
@@ -70,7 +70,7 @@ class Data:
 
     def set_plane_map(self, map_name: str = "2T-UX") -> None:
         """
-        Set the plane map to use when extract.
+        Set the plane map to use when reading.
 
         Map naming is consistent with the channel map variant.
 
@@ -119,18 +119,18 @@ class Data:
         """ A list of records within the given file. """
         return self._records
 
-    def extract(self, record: tuple[int, int], *args) -> NDArray:
+    def read_record(self, record: tuple[int, int], *args) -> NDArray:
         """
         Extract data from the given HDF5 data file.
 
         Parameters:
-            record (tuple[int, int]) : Trigger record to extract from the current dataset.
-            *args (int | ArrayLike | str | None) : Channels to extract from, array-like, plane names, channel number, or empty for all.
+            record (tuple[int, int]) : Trigger record to read from the current dataset.
+            *args (int | ArrayLike | str | None) : Channels to read from, array-like, plane names, channel number, or empty for all.
 
         Returns a 2D np.ndarray of channel waveforms.
         """
         if record in self._records:
-            self._last_extracted_record = record
+            self._last_read_record = record
         else:
             raise IndexError("This record ID is not available in the current data set.")
 
@@ -138,11 +138,11 @@ class Data:
             arg = None
         else:
             arg = args[0]
-        return self._extract_helper(arg)
+        return self._read_helper(arg)
 
-    def _extract(self, record: tuple[int, int], mask: NDArray | int) -> NDArray:
+    def _read(self, record: tuple[int, int], mask: NDArray | int) -> NDArray:
         """
-        Performs the extraction after all the preprocessing.
+        Performs the reading after all the preprocessing.
         """
         geo_ids: set[int] = self._h5_file.get_geo_ids(record)
         adcs: NDArray | None = None  # Don't know the shape of the upcoming fragment, so prepare later
@@ -169,24 +169,24 @@ class Data:
         return adcs[:, mask]
 
     @singledispatchmethod
-    def _extract_helper(self, arg: None):
+    def _read_helper(self, arg: None):
         """
         Get all channels.
         """
         mask = np.arange(0, 128)
-        assert isinstance(self._last_extracted_record, tuple)
-        return self._extract(self._last_extracted_record, mask)
+        assert isinstance(self._last_read_record, tuple)
+        return self._read(self._last_read_record, mask)
 
-    @_extract_helper.register
+    @_read_helper.register
     def _(self, arg: int):
         """
         Get only one channel.
         """
         mask = arg
-        assert isinstance(self._last_extracted_record, tuple)
-        return self._extract(self._last_extracted_record, mask)
+        assert isinstance(self._last_read_record, tuple)
+        return self._read(self._last_read_record, mask)
 
-    @_extract_helper.register
+    @_read_helper.register
     def _(self, arg: str):
         """
         Get by plane name.
@@ -201,15 +201,15 @@ class Data:
             mask = np.array(self._plane_map["induction1"])
         elif arg == "induction2" or arg == "induction 2" or arg == "i2" or arg == "2":
             mask = np.array(self._plane_map["induction2"])
-        assert isinstance(self._last_extracted_record, tuple)
-        return self._extract(self._last_extracted_record, mask)
+        assert isinstance(self._last_read_record, tuple)
+        return self._read(self._last_read_record, mask)
 
     # Union typing supported in Python >=3.11, so this will have to do for now.
-    @_extract_helper.register(set)
-    @_extract_helper.register(list)
-    @_extract_helper.register(tuple)
-    @_extract_helper.register(range)
-    @_extract_helper.register(np.ndarray)
+    @_read_helper.register(set)
+    @_read_helper.register(list)
+    @_read_helper.register(tuple)
+    @_read_helper.register(range)
+    @_read_helper.register(np.ndarray)
     def _(self, arg):
         """
         Get by valid array-like object.
@@ -221,17 +221,17 @@ class Data:
                 adcs = None
                 for plane in arg:
                     if adcs is None:
-                        adcs = self._extract_helper(plane)
+                        adcs = self._read_helper(plane)
                     else:
-                        adcs = np.hstack((adcs, self._extract_helper(plane)))
+                        adcs = np.hstack((adcs, self._read_helper(plane)))
                 return adcs
 
         # Integer array-like masking
         try:
             mask = np.array(arg, dtype=int)
         except (TypeError, ValueError):
-            raise TypeError(f"{type(arg)} is not a valid array-like objecto to mask from.")
-        return self._extract(self._last_extracted_record, mask)
+            raise TypeError(f"{type(arg)} is not a valid array-like object to mask from.")
+        return self._read(self._last_read_record, mask)
 
     def __str__(self):
         """ Data file path given to process. """

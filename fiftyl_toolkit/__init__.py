@@ -1,1 +1,2 @@
-from .io import Data
+from . import channelmaps
+from .wibethreader import WIBEthReader
