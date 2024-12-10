@@ -1,4 +1,4 @@
-from ..ChannelMaps import CHANNEL_MAPS
+from ..ChannelMaps import CHANNEL_MAPS, PLANE_MAPS
 
 from datetime import datetime
 from functools import singledispatchmethod
