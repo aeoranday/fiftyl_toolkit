@@ -111,15 +111,14 @@ class Data:
         for gid in geo_ids:
             frag = self._h5_file.get_frag(record, gid)
 
-            link = 0xffff & (gid >> 48)
+            link = (0xffff & (gid >> 48)) % 2
+            map_bounds = (link * 64, (link+1) * 64)
             tmp_adc = np_array_adc(frag)
 
             if type(adcs) == type(None): # Now we can get the shape to initialize
                 adcs = np.zeros((tmp_adc.shape[0], 128))
 
-            for channel in range(self._channels_per_link):
-                mapped_channel = np.where(self._channel_map == (link * 64 + channel))[0]
-                adcs[:, mapped_channel] = tmp_adc[:, channel].reshape(-1, 1)
+            adcs[:, self._inverse_map[map_bounds[0]:map_bounds[1]]] = tmp_adc
 
         return adcs[:, mask]
 
