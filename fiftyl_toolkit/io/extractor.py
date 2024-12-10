@@ -5,58 +5,77 @@ from functools import singledispatchmethod
 import os
 
 import numpy as np
+from numpy.typing import NDArray
 
 import daqdataformats
 from hdf5libs import HDF5RawDataFile
 from rawdatautils.unpack.wibeth import np_array_adc
 
 class Data:
-    _dt_format = "%Y%m%dT%H%M%S" # datetime format from hdf5 files.
     _channels_per_link = 64
 
-    def __init__(self, filename: str, map_version: int=0):
+    def __init__(self, filename: str, map_name: str="2T-UX"):
         self._filename = os.path.expanduser(filename)
         self._h5_file = HDF5RawDataFile(self._filename)
         self._records = self._h5_file.get_all_record_ids()
         self._last_extracted_record = None
 
-        self._datetime = datetime.strptime(self._filename.split("_")[-1].split(".")[0], self._dt_format)
-        self.run_id = int(self._filename.split('/')[-1].split('_')[1][3:])
-        self.sub_run_id = int(self._filename.split('/')[-1].split('_')[2])
-        self.set_channel_map(map_version)
-
-    def set_channel_map(self, map_version: int=0) -> None:
-        """
-        Set the channel map version.
-        """
-        self._channel_map = np.array(CHANNEL_MAPS[map_version])
+        self._creation_timestamp = int(self._h5_file.get_attribute("creation_timestamp"))
+        self._run_id = self._h5_file.get_int_attribute("run_number")
+        self._file_index = self._h5_file.get_int_attribute("file_index")
+        self.set_channel_map(map_name)
+        self.set_plane_map(map_name)
         return
 
-    def get_run_id(self) -> int:
+    def get_channel_map(self) -> list[int]:
+        return self._channel_map
+
+    def set_channel_map(self, map_name: str="2T-UX") -> None:
+        try:
+            self._channel_map = np.array(CHANNEL_MAPS[map_name])
+            self._inverse_map = np.argsort(self._channel_map)
+        except KeyError:
+            raise KeyError(f"Given channel map name is not available. Use one of: {list(CHANNEL_MAPS.keys())}")
+        return
+
+    def get_plane_map(self) -> NDArray:
+        return self._plane_map
+
+    def set_plane_map(self, map_name: str="2T-UX") -> None:
+        try:
+            self._plane_map = PLANE_MAPS[map_name]
+        except KeyError:
+            raise KeyError(f"Given plane map name is not available. Use one of: {list(PLANE_MAPS.keys())}")
+        return
+
+    @property
+    def run_id(self):
+        return self._run_id
+
+    @run_id.getter
+    def run_id(self) -> int:
         """
         Return the run ID integer.
         """
-        return self.run_id
+        return self._run_id
 
-    def get_sub_run_id(self) -> int:
+    @property
+    def file_index(self):
+        return self._file_index
+
+    @file_index.getter
+    def file_index(self) -> int:
         """
         Return the sub-run ID integer.
         """
-        return self.sub_run_id
+        return self._file_index
 
-    def get_runtime(self) -> str:
-        """
-        Return a string of the HDF5 run time formatted as YYmmddTHHMMSS.
-        """
-        return self._datetime.strftime(self._dt_format)
+    @property
+    def records(self):
+        return self._records
 
-    def get_datetime(self) -> datetime:
-        """
-        Return the datetime object of the HDF5 run time.
-        """
-        return self._datetime
-
-    def get_records(self) -> list:
+    @records.getter
+    def records(self) -> list[tuple[int, int]]:
         """
         Return the list of records contained in this file.
         """
@@ -127,11 +146,11 @@ class Data:
         """
         arg = arg.lower()
         if arg == "collection" or arg == "collect" or arg == "c":
-            mask = np.arange(0, 48)
+            mask = np.array(self._plane_map["collection"])
         elif arg == "induction1" or arg == "induction 1" or arg == "i1" or arg == "1":
-            mask = np.arange(48, 88)
+            mask = np.array(self._plane_map["induction1"])
         elif arg == "induction2" or arg == "induction 2" or arg == "i2" or arg == "2":
-            mask = np.arange(88, 128)
+            mask = np.array(self._plane_map["induction2"])
         return self._extract(self._last_extracted_record, mask)
 
     # Union typing supported in Python >=3.11, so this will have to do for now.
@@ -158,7 +177,7 @@ class Data:
 
         ## Integer array-like masking
         try:
-            mask = np.array(arg, dtype='int')
+            mask = np.array(arg, dtype=int)
         except (TypeError, ValueError):
             raise TypeError(f"{type(arg)} is not a valid array-like objecto to mask from.")
         return self._extract(self._last_extracted_record, mask)
